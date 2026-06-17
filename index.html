@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像からアスキーアート変換器</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .upload-area {
+            background: white;
+            border: 2px dashed #3498db;
+            border-radius: 10px;
+            padding: 30px;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .upload-area:hover {
+            background: #e8f4fd;
+        }
+        #fileInput {
+            display: none;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            align-items: center;
+        }
+        label {
+            font-weight: bold;
+        }
+        /* アスキーアート表示エリアの重要な設定 */
+        #aa-output {
+            background-color: #1e1e1e;
+            color: #00ff00; /* レトロな緑色の文字 */
+            font-family: monospace; /* 等幅フォントが必須 */
+            font-size: 8px;        /* 文字を小さくして高精細にする */
+            line-height: 1.0;      /* 行間を詰めて歪みを防ぐ */
+            letter-spacing: 0px;
+            white-space: pre;      /* 改行やスペースをそのまま表示 */
+            overflow-x: auto;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: left;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Image to ASCII Art Converter</h1>
+    <p>画像をアップロードすると、自動で文字のアートに変換します。</p>
+
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        <p>ここをクリックして画像を選択、またはドラッグ＆ドロップ</p>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="controls">
+        <label for="widthInput">解像度（横の文字数）:</label>
+        <input type="range" id="widthInput" min="50" max="200" value="100" step="10">
+        <span id="widthValue">100</span>
+    </div>
+
+    <pre id="aa-output">ここにアスキーアートが表示されます</pre>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const widthInput = document.getElementById('widthInput');
+        const widthValue = document.getElementById('widthValue');
+        const aaOutput = document.getElementById('aa-output');
+
+        // 濃淡を表す文字のリスト（左ほど暗く、右ほど明るい場所に使用）
+        const asciiChars = '@%#*+=-:. ';
+
+        let currentImage = null;
+
+        // スライダーの値を更新
+        widthInput.addEventListener('input', (e) => {
+            widthValue.textContent = e.target.value;
+            if (currentImage) {
+                convertToASCII(currentImage, parseInt(e.target.value));
+            }
+        });
+
+        // 画像がアップロードされた時の処理
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    currentImage = img;
+                    convertToASCII(img, parseInt(widthInput.value));
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 画像をアスキーアートに変換するメイン処理
+        function convertToASCII(img, targetWidth) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // フォントの縦横比（標準的な等幅フォントは縦が横の約2倍）を考慮して縮小
+            const scale = targetWidth / img.width;
+            const targetHeight = Math.round(img.height * scale * 0.55);
+
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+
+            // キャンバスに画像をリサイズして描画
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+            // 画像の画素（ピクセル）データを取得
+            const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+            const data = imageData.data;
+
+            let asciiStr = '';
+
+            // ピクセルを1つずつ調べて文字に置き換える
+            for (let y = 0; y < targetHeight; y++) {
+                for (let x = 0; x < targetWidth; x++) {
+                    const idx = (y * targetWidth + x) * 4;
+                    const r = data[idx];
+                    const g = data[idx + 1];
+                    const b = data[idx + 2];
+
+                    // 輝度（明るさ）を計算する数式
+                    const brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+                    // 明るさに応じて文字を割り当てる
+                    const charIdx = Math.floor((brightness / 255) * (asciiChars.length - 1));
+                    asciiStr += asciiChars[charIdx];
+                }
+                asciiStr += '\n'; // 行の終わりに改行
+            }
+
+            // 画面に出力
+            aaOutput.textContent = asciiStr;
+        }
+    </script>
+</body>
+</html>
