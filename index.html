@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>画像からアスキーアート変換器</title>
+    <title>高機能・画像からアスキーアート変換器</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: #f0f2f5;
             color: #333;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
             text-align: center;
         }
         h1 {
             color: #2c3e50;
+            margin-bottom: 5px;
         }
         .upload-area {
             background: white;
             border: 2px dashed #3498db;
             border-radius: 10px;
-            padding: 30px;
+            padding: 25px;
             margin: 20px 0;
             cursor: pointer;
             transition: background 0.3s;
@@ -33,36 +34,86 @@
             display: none;
         }
         .controls {
-            margin: 20px 0;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             display: flex;
+            flex-wrap: wrap;
             justify-content: center;
-            gap: 15px;
+            gap: 20px;
             align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         label {
             font-weight: bold;
+            font-size: 14px;
         }
-        /* アスキーアート表示エリアの重要な設定 */
+        /* ボタンのスタイリング */
+        .btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover {
+            background-color: #27ae60;
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+        /* AA表示エリアの設定 */
+        .output-container {
+            position: relative; /* コピーボタンを右上固定にするため */
+            margin-top: 10px;
+        }
         #aa-output {
             background-color: #1e1e1e;
-            color: #00ff00; /* レトロな緑色の文字 */
-            font-family: monospace; /* 等幅フォントが必須 */
-            font-size: 8px;        /* 文字を小さくして高精細にする */
-            line-height: 1.0;      /* 行間を詰めて歪みを防ぐ */
+            color: #ffffff;        /* デフォルトは白 */
+            font-family: monospace; /* 等幅フォント */
+            font-size: 8px;        /* 文字サイズ */
+            line-height: 1.0;      /* 行間 */
             letter-spacing: 0px;
-            white-space: pre;      /* 改行やスペースをそのまま表示 */
+            white-space: pre;      /* 改行・空白の維持 */
             overflow-x: auto;
-            padding: 20px;
+            padding: 25px;
             border-radius: 5px;
             text-align: left;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            min-height: 100px;
+        }
+        /* カラー表示用のスタイル調整（ブラウザが文字単位で色を塗る用） */
+        #aa-output span {
+            font-family: monospace;
+        }
+        /* コピーボタンの配置 */
+        #copyBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(52, 152, 219, 0.8);
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        #copyBtn:hover {
+            background-color: rgba(41, 128, 185, 1);
         }
     </style>
 </head>
 <body>
 
     <h1>Image to ASCII Art Converter</h1>
-    <p>画像をアップロードすると、自動で文字のアートに変換します。</p>
+    <p>画像をアップロードして、お好みでカラーや解像度を調整してください。</p>
 
     <div class="upload-area" onclick="document.getElementById('fileInput').click()">
         <p>ここをクリックして画像を選択、またはドラッグ＆ドロップ</p>
@@ -70,33 +121,48 @@
     </div>
 
     <div class="controls">
-        <label for="widthInput">解像度（横の文字数）:</label>
-        <input type="range" id="widthInput" min="50" max="200" value="100" step="10">
-        <span id="widthValue">100</span>
+        <div class="control-group">
+            <label for="widthInput">解像度:</label>
+            <input type="range" id="widthInput" min="50" max="180" value="100" step="10">
+            <span id="widthValue">100</span>
+        </div>
+
+        <div class="control-group">
+            <label>表示モード:</label>
+            <input type="radio" id="modeMono" name="colorMode" value="mono" checked>
+            <label for="modeMono" style="font-weight: normal;">白黒</label>
+            
+            <input type="radio" id="modeColor" name="colorMode" value="color">
+            <label for="modeColor" style="font-weight: normal;">カラー</label>
+        </div>
     </div>
 
-    <pre id="aa-output">ここにアスキーアートが表示されます</pre>
+    <div class="output-container">
+        <button id="copyBtn" class="btn">コピーする</button>
+        <pre id="aa-output">ここにアスキーアートが表示されます</pre>
+    </div>
 
     <script>
         const fileInput = document.getElementById('fileInput');
         const widthInput = document.getElementById('widthInput');
         const widthValue = document.getElementById('widthValue');
         const aaOutput = document.getElementById('aa-output');
+        const copyBtn = document.getElementById('copyBtn');
+        const modeMono = document.getElementById('modeMono');
+        const modeColor = document.getElementById('modeColor');
 
-        // 濃淡を表す文字のリスト（左ほど暗く、右ほど明るい場所に使用）
         const asciiChars = '@%#*+=-:. ';
-
         let currentImage = null;
 
-        // スライダーの値を更新
+        // イベントリスナーの設定
         widthInput.addEventListener('input', (e) => {
             widthValue.textContent = e.target.value;
-            if (currentImage) {
-                convertToASCII(currentImage, parseInt(e.target.value));
-            }
+            triggerConversion();
         });
 
-        // 画像がアップロードされた時の処理
+        modeMono.addEventListener('change', triggerConversion);
+        modeColor.addEventListener('change', triggerConversion);
+
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -106,55 +172,121 @@
                 const img = new Image();
                 img.onload = function() {
                     currentImage = img;
-                    convertToASCII(img, parseInt(widthInput.value));
+                    triggerConversion();
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         });
 
-        // 画像をアスキーアートに変換するメイン処理
-        function convertToASCII(img, targetWidth) {
+        // 変換を実行するトリガー関数
+        function triggerConversion() {
+            if (!currentImage) return;
+            const targetWidth = parseInt(widthInput.value);
+            const isColor = modeColor.checked;
+            convertToASCII(currentImage, targetWidth, isColor);
+        }
+
+        // メインのAA変換ロジック
+        function convertToASCII(img, targetWidth, isColor) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
 
-            // フォントの縦横比（標準的な等幅フォントは縦が横の約2倍）を考慮して縮小
             const scale = targetWidth / img.width;
             const targetHeight = Math.round(img.height * scale * 0.55);
 
             canvas.width = targetWidth;
             canvas.height = targetHeight;
-
-            // キャンバスに画像をリサイズして描画
             ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-            // 画像の画素（ピクセル）データを取得
             const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
             const data = imageData.data;
 
-            let asciiStr = '';
+            // 出力エリアをリセット
+            aaOutput.innerHTML = ''; 
 
-            // ピクセルを1つずつ調べて文字に置き換える
-            for (let y = 0; y < targetHeight; y++) {
-                for (let x = 0; x < targetWidth; x++) {
-                    const idx = (y * targetWidth + x) * 4;
-                    const r = data[idx];
-                    const g = data[idx + 1];
-                    const b = data[idx + 2];
+            if (isColor) {
+                // 【カラーモード】 HTMLの要素として色つき文字を構築
+                aaOutput.style.color = '#ffffff'; // ベースをリセット
+                let fragment = document.createDocumentFragment();
+                
+                for (let y = 0; y < targetHeight; y++) {
+                    let rowText = '';
+                    let lastColor = '';
+                    let span = null;
 
-                    // 輝度（明るさ）を計算する数式
-                    const brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                    for (let x = 0; x < targetWidth; x++) {
+                        const idx = (y * targetWidth + x) * 4;
+                        const r = data[idx];
+                        const g = data[idx + 1];
+                        const b = data[idx + 2];
 
-                    // 明るさに応じて文字を割り当てる
-                    const charIdx = Math.floor((brightness / 255) * (asciiChars.length - 1));
-                    asciiStr += asciiChars[charIdx];
+                        const brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                        const charIdx = Math.floor((brightness / 255) * (asciiChars.length - 1));
+                        const char = asciiChars[charIdx];
+
+                        // パフォーマンス向上のため、同じ色の文字は1つのspanにまとめる
+                        const currentColor = `rgb(${r},${g},${b})`;
+                        
+                        if (currentColor !== lastColor) {
+                            if (span) span.textContent = rowText;
+                            span = document.createElement('span');
+                            span.style.color = currentColor;
+                            fragment.appendChild(span);
+                            rowText = '';
+                            lastColor = currentColor;
+                        }
+                        rowText += char;
+                    }
+                    if (span) span.textContent = rowText;
+                    fragment.appendChild(document.createTextNode('\n'));
                 }
-                asciiStr += '\n'; // 行の終わりに改行
+                aaOutput.appendChild(fragment);
+
+            } else {
+                // 【白黒モード】 純粋なプレーンテキストとして構築
+                aaOutput.style.color = '#ffffff'; // 文字色を白に固定
+                let asciiStr = '';
+                for (let y = 0; y < targetHeight; y++) {
+                    for (let x = 0; x < targetWidth; x++) {
+                        const idx = (y * targetWidth + x) * 4;
+                        const r = data[idx];
+                        const g = data[idx + 1];
+                        const b = data[idx + 2];
+
+                        const brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                        const charIdx = Math.floor((brightness / 255) * (asciiChars.length - 1));
+                        asciiStr += asciiChars[charIdx];
+                    }
+                    asciiStr += '\n';
+                }
+                aaOutput.textContent = asciiStr;
+            }
+        }
+
+        // クリップボードへのコピー処理
+        copyBtn.addEventListener('click', () => {
+            // textContent を使うことで、カラーモードのHTMLタグを除外した「純粋な文字だけ」を取得できる
+            const textToCopy = aaOutput.textContent; 
+            
+            if (!textToCopy || textToCopy === 'ここにアスキーアートが表示されます') {
+                alert('コピーするアスキーアートがありません。');
+                return;
             }
 
-            // 画面に出力
-            aaOutput.textContent = asciiStr;
-        }
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'コピー完了！';
+                copyBtn.style.backgroundColor = '#e67e22'; // オレンジ色に一時変化
+                
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.backgroundColor = '';
+                }, 2000);
+            }).catch(err => {
+                alert('コピーに失敗しました: ', err);
+            });
+        });
     </script>
 </body>
 </html>
